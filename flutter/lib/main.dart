@@ -304,6 +304,8 @@ void runConnectionManagerScreen() async {
 bool _isCmReadyToShow = false;
 
 showCmWindow({bool isStartup = false}) async {
+  // Internal incoming-only build: the connection manager window must never show.
+  if (bind.isIncomingOnly()) return;
   if (isStartup) {
     WindowOptions windowOptions = getHiddenTitleBarWindowOptions(
         size: kConnectionManagerWindowSizeClosedChat, alwaysOnTop: true);

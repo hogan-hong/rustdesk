@@ -312,6 +312,8 @@ class ChatModel with ChangeNotifier {
 
   var _togglingCMSidePage = false; // protect order for await
   toggleCMSidePage() async {
+    // Internal incoming-only build: never bring the hidden CM window to front.
+    if (bind.isIncomingOnly()) return false;
     if (_togglingCMSidePage) return false;
     _togglingCMSidePage = true;
     if (_isShowCMSidePage) {
