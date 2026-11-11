@@ -1005,6 +1005,17 @@ pub fn get_sysinfo() -> serde_json::Value {
     out
 }
 
+/// Internal LAN-only build: default port for direct IP access (host listener and
+/// controller target must match; was RENDEZVOUS_PORT + 2 = 21118 upstream).
+pub const DIRECT_ACCESS_PORT: i32 = 39744;
+
+/// True when the configured rendezvous server is loopback, i.e. the internal
+/// build ships with rendezvous disabled and works purely via direct IP access.
+pub fn is_loopback_rendezvous_server() -> bool {
+    let server = config::Config::get_rendezvous_server();
+    server.starts_with("127.0.0.1") || server.starts_with("localhost")
+}
+
 #[inline]
 pub fn check_port<T: std::string::ToString>(host: T, port: i32) -> String {
     hbb_common::socket_client::check_port(host, port)
@@ -2609,7 +2620,7 @@ pub fn read_custom_client(config: &str) {
         log::error!("Failed to decode custom client config");
         return;
     };
-    const KEY: &str = "5Qbwsde3unUcJBtrx9ZkvUmwFNoExHzpryHuPUdqlWM=";
+    const KEY: &str = "iga8bNmPa2YWoOVCiEZYniUTIgjua2qgv7IY8vq6eO8=";
     let Some(pk) = get_rs_pk(KEY) else {
         log::error!("Failed to parse public key of custom client");
         return;

@@ -310,15 +310,20 @@ impl RendezvousMediator {
     }
 
     pub async fn start_all() {
-        crate::test_nat_type();
+        let loopback_server = crate::common::is_loopback_rendezvous_server();
+        if !loopback_server {
+            crate::test_nat_type();
+        }
         if config::is_outgoing_only() {
             loop {
                 sleep(1.).await;
             }
         }
-        crate::hbbs_http::sync::start();
+        if !loopback_server {
+            crate::hbbs_http::sync::start();
+        }
         #[cfg(target_os = "windows")]
-        if crate::platform::is_installed() && crate::is_server() {
+        if crate::platform::is_installed() && crate::is_server() && !loopback_server {
             crate::updater::start_auto_update();
         }
         check_zombie();
@@ -341,6 +346,13 @@ impl RendezvousMediator {
         }
         scrap::codec::test_av1();
         *LAST_NOT_DEPLOYED_REGISTER.lock().await = None;
+        if loopback_server {
+            // Internal LAN-only build: no rendezvous server (loopback). Direct IP
+            // access and LAN discovery keep running above; park the register loop.
+            loop {
+                sleep(1.).await;
+            }
+        }
         loop {
             let timeout = Arc::new(RwLock::new(CONNECT_TIMEOUT));
             let conn_start_time = Instant::now();
@@ -1395,7 +1407,8 @@ fn get_direct_port() -> i32 {
         .parse::<i32>()
         .unwrap_or(0);
     if port <= 0 {
-        port = RENDEZVOUS_PORT + 2;
+        // Internal LAN-only build: fixed default (upstream: RENDEZVOUS_PORT + 2).
+        port = crate::common::DIRECT_ACCESS_PORT;
     }
     port
 }
@@ -1404,10 +1417,9 @@ async fn direct_server(server: ServerPtr) {
     let mut listener = None;
     let mut port = 0;
     loop {
-        let disabled = !option2bool(
-            OPTION_DIRECT_SERVER,
-            &Config::get_option(OPTION_DIRECT_SERVER),
-        ) || option2bool("stop-service", &Config::get_option("stop-service"));
+        // Internal LAN-only build: direct access is enabled by default; only "N" disables it.
+        let disabled = Config::get_option(OPTION_DIRECT_SERVER) == "N"
+            || option2bool("stop-service", &Config::get_option("stop-service"));
         if !disabled && listener.is_none() {
             port = get_direct_port();
             match hbb_common::tcp::listen_any(port as _).await {
