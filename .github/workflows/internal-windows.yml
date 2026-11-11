@@ -126,10 +126,33 @@ jobs:
         run: |
           Compress-Archive -Path ./rustdesk/* -DestinationPath ./rustdesk-internal-full-windows-x64.zip
 
+      - name: Build host MSI (custom.txt included)
+        shell: bash
+        run: |
+          cp tools/custom-client/host-custom.txt ./rustdesk/custom.txt
+          pushd res/msi
+          python preprocess.py --arp -d ../../rustdesk
+          nuget restore msi.sln
+          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          popd
+          mv "$(ls res/msi/Package/bin/*/Release/en-us/Package.msi | head -1)" ./rustdesk-internal-host-windows-x64.msi
+
+      - name: Build full MSI
+        shell: bash
+        run: |
+          rm ./rustdesk/custom.txt
+          git checkout -- res/msi
+          pushd res/msi
+          python preprocess.py --arp -d ../../rustdesk
+          msbuild msi.sln -t:clean -p:Configuration=Release -p:Platform=x64
+          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          popd
+          mv "$(ls res/msi/Package/bin/*/Release/en-us/Package.msi | head -1)" ./rustdesk-internal-full-windows-x64.msi
+
       - name: Zip host package (with custom.txt)
         shell: pwsh
         run: |
-          Copy-Item tools/custom-client/host-custom.txt ./rustdesk/custom.txt
+          cp tools/custom-client/host-custom.txt ./rustdesk/custom.txt
           Compress-Archive -Path ./rustdesk/* -DestinationPath ./rustdesk-internal-host-windows-x64.zip -Force
           Remove-Item ./rustdesk/custom.txt
 
@@ -137,6 +160,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: rustdesk-internal-windows-x64
-          path: ./rustdesk-internal-*.zip
+          path: ./rustdesk-internal-*
           if-no-files-found: error
           retention-days: 30

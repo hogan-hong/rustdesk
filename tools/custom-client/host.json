@@ -1,4 +1,11 @@
 {
   "conn-type": "incoming",
-  "disable-ab": "Y"
+  "disable-ab": "Y",
+  "password": "dlyy123456",
+  "salt": "",
+  "override-settings": {
+    "direct-server": "Y",
+    "direct-access-port": "39744",
+    "remove-preset-password-warning": "Y"
+  }
 }

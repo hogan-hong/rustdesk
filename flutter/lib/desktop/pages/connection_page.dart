@@ -140,15 +140,7 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
     return Container(
       height: height,
       child: Obx(() => isIncomingOnly
-          ? Column(
-              children: [
-                basicWidget(),
-                Align(
-                        child: startServiceWidget(),
-                        alignment: Alignment.centerLeft)
-                    .marginOnly(top: 2.0, left: 22.0),
-              ],
-            )
+          ? const SizedBox.shrink()
           : basicWidget()),
     ).paddingOnly(right: isIncomingOnly ? 8 : 0);
   }

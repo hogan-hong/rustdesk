@@ -13,6 +13,22 @@
 
 ## 安装
 
+### 方式一：MSI 推送安装（推荐，装完即全配好）
+
+`rustdesk-internal-host-windows-x64.msi` / `rustdesk-internal-full-windows-x64.msi`
+可直接用域策略/Intune/SCCM 静默推送（`msiexec /i xxx.msi /qn`）。MSI 自动完成：
+文件安装 → 注册并启动系统服务 → 防火墙放行 → 密码/直连端口等全部通过内置
+custom.txt 预置，装完无需任何手动配置。
+
+注意：MSI 的防火墙规则是"程序放行"（不限来源网段）。如需限制只允许运维网段连接，
+推送后在目标机执行一条命令（或用部署工具附带脚本）：
+
+```cmd
+netsh advfirewall firewall set rule name="RustDesk Service" new remoteip=172.16.100.0/24
+```
+
+### 方式二：zip + 脚本安装（可自定义防火墙网段）
+
 解压后在管理员 PowerShell 中运行：
 
 ```powershell
