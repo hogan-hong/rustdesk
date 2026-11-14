@@ -127,7 +127,7 @@ jobs:
           Compress-Archive -Path ./rustdesk/* -DestinationPath ./rustdesk-internal-full-windows-x64.zip
 
       - name: Build host MSI (custom.txt included)
-        shell: bash
+        shell: pwsh
         run: |
           cp tools/custom-client/host-custom.txt ./rustdesk/custom.txt
           pushd res/msi
@@ -135,10 +135,11 @@ jobs:
           nuget restore msi.sln
           msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
           popd
-          mv "$(ls res/msi/Package/bin/*/Release/en-us/Package.msi | head -1)" ./rustdesk-internal-host-windows-x64.msi
+          $msi = Get-ChildItem ./res/msi/Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          mv $msi.FullName ./rustdesk-internal-host-windows-x64.msi
 
       - name: Build full MSI
-        shell: bash
+        shell: pwsh
         run: |
           rm ./rustdesk/custom.txt
           git checkout -- res/msi
@@ -147,7 +148,8 @@ jobs:
           msbuild msi.sln -t:clean -p:Configuration=Release -p:Platform=x64
           msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
           popd
-          mv "$(ls res/msi/Package/bin/*/Release/en-us/Package.msi | head -1)" ./rustdesk-internal-full-windows-x64.msi
+          $msi = Get-ChildItem ./res/msi/Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          mv $msi.FullName ./rustdesk-internal-full-windows-x64.msi
 
       - name: Zip host package (with custom.txt)
         shell: pwsh
