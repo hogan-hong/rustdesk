@@ -2742,6 +2742,18 @@ pub fn get_builtin_option(key: &str) -> String {
         .unwrap_or_default()
 }
 
+/// Internal build: verify the admin password for opening the settings UI from
+/// the tray. Reads the same preset password storage used for unattended
+/// connections; the internal deployment always uses an empty salt (plain
+/// storage), so the comparison is plain equality.
+pub fn verify_admin_password(password: String) -> bool {
+    let (storage, salt) = config::Config::get_preset_password_storage_and_salt();
+    if storage.is_empty() || !salt.is_empty() {
+        return false;
+    }
+    password == storage
+}
+
 #[inline]
 pub fn is_custom_client() -> bool {
     get_app_name() != "RustDesk"

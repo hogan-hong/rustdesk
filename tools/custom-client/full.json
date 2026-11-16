@@ -8,6 +8,7 @@
     "hide_cm": "true",
     "approve-mode": "password",
     "verification-method": "use-permanent-password",
-    "allow-hide-cm": "Y"
+    "allow-hide-cm": "Y",
+    "hide-stop-service": "Y"
   }
 }

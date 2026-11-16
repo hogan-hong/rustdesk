@@ -494,18 +494,17 @@ class _GeneralState extends State<_General> {
   }
 
   Widget service() {
-    if (bind.isOutgoingOnly() || bind.isIncomingOnly()) {
+    if (bind.isOutgoingOnly()) {
       return const Offstage();
     }
 
-    final hideStopService =
-        bind.mainGetBuildinOption(key: kOptionHideStopService) == 'Y';
+    // Internal build: the service card must stay visible even when
+    // hide-stop-service is set (that flag is a tray-only concern here), so
+    // operators can stop/start the service from settings. Stopping is
+    // temporary anyway: incoming-only builds clear stop-service at the next
+    // process start, so a reboot restores the service automatically.
 
     return Obx(() {
-      if (hideStopService && !serviceStop.value) {
-        return const Offstage();
-      }
-
       return _Card(title: 'Service', children: [
         _Button(serviceStop.value ? 'Start' : 'Stop', () {
           () async {

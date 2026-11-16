@@ -56,7 +56,22 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
     // Internal build: `--config` boot arg opens the settings tab for
     // incoming-only hosts that normally hide the settings entry.
     if (kBootArgs.contains('--config')) {
-      DesktopTabPage.onAddSetting();
+      if (bind.isIncomingOnly()) {
+        // Settings entry requires admin password verification first.
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          final ctx = globalKey.currentContext;
+          if (ctx == null) {
+            DesktopTabPage.onAddSetting();
+            return;
+          }
+          final ok = await showAdminAuthDialog(ctx);
+          if (ok) {
+            DesktopTabPage.onAddSetting();
+          }
+        });
+      } else {
+        DesktopTabPage.onAddSetting();
+      }
     }
     if (bind.isIncomingOnly()) {
       tabController.onSelected = (key) {
@@ -123,4 +138,65 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
             ),
           );
   }
+}
+
+/// Internal build: admin password gate for the settings entry (tray → Settings
+/// boots the UI with `--config`; incoming-only builds must verify first).
+Future<bool> showAdminAuthDialog(BuildContext ctx) async {
+  final controller = TextEditingController();
+  var confirmed = false;
+  await showDialog(
+    context: ctx,
+    barrierDismissible: false,
+    builder: (dialogCtx) {
+      var error = '';
+      return StatefulBuilder(
+        builder: (dialogCtx, setState) {
+          Future<void> submit() async {
+            if (controller.text.isEmpty) return;
+            final ok = await bind.mainVerifyAdminPassword(controller.text);
+            if (ok) {
+              confirmed = true;
+              if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+            } else {
+              setState(() => error = '密码错误，请重新输入');
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('管理员验证'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('请输入管理员密码以进入设置'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  obscureText: true,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: '管理员密码',
+                    errorText: error.isEmpty ? null : error,
+                  ),
+                  onSubmitted: (_) => submit(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('取消'),
+              ),
+              ElevatedButton(
+                onPressed: submit,
+                child: const Text('确认'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+  controller.dispose();
+  return confirmed;
 }

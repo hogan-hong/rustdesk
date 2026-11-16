@@ -75,10 +75,14 @@ fn make_tray() -> hbb_common::ResultType<()> {
         None
     };
     let open_i = MenuItem::new(translate("Open".to_owned()), true, None);
+    // Internal build: settings entry from the tray. Incoming-only builds
+    // require admin password verification before the settings tab opens
+    // (handled by the `--config` boot arg in the UI process).
+    let settings_i = MenuItem::new(translate("Settings".to_owned()), true, None);
     if let Some(quit_i) = &quit_i {
-        tray_menu.append_items(&[&open_i, quit_i]).ok();
+        tray_menu.append_items(&[&open_i, &settings_i, quit_i]).ok();
     } else {
-        tray_menu.append_items(&[&open_i]).ok();
+        tray_menu.append_items(&[&open_i, &settings_i]).ok();
     }
     let tooltip = |count: usize| {
         if count == 0 {
@@ -188,8 +192,7 @@ fn make_tray() -> hbb_common::ResultType<()> {
         }
 
         if let Ok(event) = menu_channel.try_recv() {
-            if let Some(quit_i) = &quit_i {
-                if event.id == quit_i.id() {
+            if quit_i.as_ref().map_or(false, |q| event.id == q.id()) {
                     /* failed in windows, seems no permission to check system process
                     if !crate::check_process("--server", false) {
                         *control_flow = ControlFlow::Exit;
@@ -216,9 +219,8 @@ fn make_tray() -> hbb_common::ResultType<()> {
                         .unwrap()
                         .as_mut()
                         .map(|t| t.set_visible(true));
-                } else if event.id == open_i.id() {
-                    open_func();
-                }
+            } else if event.id == settings_i.id() {
+                crate::run_me::<&str>(vec!["--config"]).ok();
             } else if event.id == open_i.id() {
                 open_func();
             }

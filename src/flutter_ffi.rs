@@ -1021,6 +1021,10 @@ pub fn main_get_local_ip() -> String {
     crate::common::get_primary_ipv4()
 }
 
+pub fn main_verify_admin_password(password: String) -> SyncReturn<bool> {
+    SyncReturn(crate::common::verify_admin_password(password))
+}
+
 pub fn main_get_error() -> String {
     get_error()
 }
