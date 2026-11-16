@@ -90,8 +90,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         child: loadLogo(),
       ),
       buildTip(context),
-      if (!isOutgoingOnly) buildIDBoard(context),
-      if (!isOutgoingOnly) buildPasswordBoard(context),
+      if (bind.isIncomingOnly())
+        _buildIpBoard(context)
+      else if (!isOutgoingOnly)
+        buildIDBoard(context),
+      if (!isOutgoingOnly && !bind.isIncomingOnly())
+        buildPasswordBoard(context),
       FutureBuilder<Widget>(
         future: Future.value(
             Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
@@ -170,6 +174,73 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: ConnectionPage(),
+    );
+  }
+
+  Widget _buildIpBoard(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 11),
+      height: 57,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Container(
+            width: 2,
+            decoration: const BoxDecoration(color: MyTheme.accent),
+          ).marginOnly(top: 5),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 25,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        translate("IP"),
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.color
+                                ?.withOpacity(0.5)),
+                      ).marginOnly(top: 5),
+                    ),
+                  ),
+                  Flexible(
+                    child: FutureBuilder<String>(
+                      future: bind.mainGetLocalIp(),
+                      builder: (context, snapshot) {
+                        final ip = snapshot.data ?? '';
+                        return GestureDetector(
+                          onDoubleTap: () {
+                            if (ip.isNotEmpty) {
+                              Clipboard.setData(ClipboardData(text: ip));
+                              showToast(translate("Copied"));
+                            }
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              ip.isEmpty ? '-' : ip,
+                              style: TextStyle(fontSize: 22),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

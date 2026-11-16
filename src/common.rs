@@ -1016,6 +1016,32 @@ pub fn is_loopback_rendezvous_server() -> bool {
     server.starts_with("127.0.0.1") || server.starts_with("localhost")
 }
 
+/// Internal LAN-only build: primary IPv4 for the UI IP board. The rendezvous
+/// nat test that normally fills `local-ip-addr` never runs, so compute it here.
+pub fn get_primary_ipv4() -> String {
+    if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
+        // UDP connect resolves the outbound route without sending any packet.
+        for target in ["8.8.8.8:80", "114.114.114.114:80"] {
+            if sock.connect(target).is_ok() {
+                if let Ok(addr) = sock.local_addr() {
+                    if !addr.ip().is_loopback() {
+                        return addr.ip().to_string();
+                    }
+                }
+            }
+        }
+    }
+    for iface in default_net::get_interfaces() {
+        for v4 in &iface.ipv4 {
+            let s = v4.addr.to_string();
+            if !s.starts_with("127.") && !s.starts_with("169.254.") {
+                return s;
+            }
+        }
+    }
+    String::new()
+}
+
 #[inline]
 pub fn check_port<T: std::string::ToString>(host: T, port: i32) -> String {
     hbb_common::socket_client::check_port(host, port)

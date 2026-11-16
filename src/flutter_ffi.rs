@@ -1017,6 +1017,10 @@ pub fn main_get_option_sync(key: String) -> SyncReturn<String> {
     SyncReturn(get_option(key))
 }
 
+pub fn main_get_local_ip() -> String {
+    crate::common::get_primary_ipv4()
+}
+
 pub fn main_get_error() -> String {
     get_error()
 }

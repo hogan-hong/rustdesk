@@ -7,6 +7,7 @@
     "direct-server": "Y",
     "direct-access-port": "39744",
     "remove-preset-password-warning": "Y",
-    "hide_cm": "true"
+    "hide_cm": "true",
+    "approve-mode": "password"
   }
 }
