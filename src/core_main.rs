@@ -142,6 +142,12 @@ pub fn core_main() -> Option<CoreMainAction> {
     if args.contains(&"--noinstall".to_string()) {
         args.clear();
     }
+    // Internal build: `--config` / `-config` opens the settings UI directly,
+    // giving incoming-only hosts (which hide the settings entry) a hidden way in.
+    if args.len() > 0 && (args[0] == "--config" || args[0] == "-config") {
+        flutter_args.push("--config".to_owned());
+        args.remove(0);
+    }
     // The portable wrapper injects `--install` when its name ends with `install.exe`,
     // including `no-install.exe`. Drop the argument instead of exiting so disabled
     // clients can continue running as portable applications.
