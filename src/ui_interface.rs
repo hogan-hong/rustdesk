@@ -477,15 +477,46 @@ pub fn set_option(key: String, value: String) {
         {
             if crate::platform::is_installed() {
                 if value == "Y" {
-                    if crate::platform::uninstall_service(true, false) {
+                    if crate::config::is_incoming_only() {
+                        // Internal locked hosts: the service must stay installed.
+                        // A stop is temporary (listeners only; the option is
+                        // cleared at the next process start), so fall through to
+                        // the plain option set below instead of uninstalling the
+                        // service and killing every RustDesk process.
+                    } else if crate::platform::uninstall_service(true, false) {
+                        return;
+                    } else {
                         return;
                     }
                 } else {
-                    if crate::platform::install_service() {
-                        return;
+                    #[cfg(target_os = "windows")]
+                    {
+                        if crate::config::is_incoming_only() {
+                            if crate::platform::windows::is_self_service_running() {
+                                // Merely paused: the plain option set below makes
+                                // the running service reload and resume listening.
+                            } else {
+                                // Service gone (e.g. from a legacy tray quit):
+                                // reinstall and start it, then keep the option.
+                                Config::set_option("stop-service".into(), "".into());
+                                if crate::platform::install_service() {
+                                    return;
+                                }
+                            }
+                        } else if crate::platform::install_service() {
+                            return;
+                        }
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        if crate::platform::install_service() {
+                            return;
+                        }
                     }
                 }
-                return;
+                if !crate::config::is_incoming_only() {
+                    return;
+                }
             }
         }
     } else if &key == "audio-input" {

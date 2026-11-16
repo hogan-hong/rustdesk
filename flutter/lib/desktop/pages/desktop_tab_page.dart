@@ -86,6 +86,23 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
     }
   }
 
+  void _onTailSettingsTap() {
+    if (bind.isIncomingOnly()) {
+      // The tail icon is only visible for `--config` boots; still require the
+      // admin password again so cancelling the startup dialog cannot bypass it.
+      final ctx = globalKey.currentContext;
+      if (ctx == null) {
+        DesktopTabPage.onAddSetting();
+        return;
+      }
+      showAdminAuthDialog(ctx).then((ok) {
+        if (ok) DesktopTabPage.onAddSetting();
+      });
+      return;
+    }
+    DesktopTabPage.onAddSetting();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -123,7 +140,7 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
                 child: ActionIcon(
                   message: 'Settings',
                   icon: IconFont.menu,
-                  onTap: DesktopTabPage.onAddSetting,
+                  onTap: () => _onTailSettingsTap(),
                   isClose: false,
                 ),
               ),
@@ -150,50 +167,68 @@ Future<bool> showAdminAuthDialog(BuildContext ctx) async {
     barrierDismissible: false,
     builder: (dialogCtx) {
       var error = '';
-      return StatefulBuilder(
-        builder: (dialogCtx, setState) {
-          Future<void> submit() async {
-            if (controller.text.isEmpty) return;
-            final ok = bind.mainVerifyAdminPassword(password: controller.text);
-            if (ok) {
-              confirmed = true;
-              if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-            } else {
-              setState(() => error = '密码错误，请重新输入');
+      // Hand-rolled layout instead of AlertDialog: the incoming-only main
+      // window is very narrow and AlertDialog crams the actions into the
+      // content line.
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: StatefulBuilder(
+          builder: (dialogCtx, setState) {
+            Future<void> submit() async {
+              if (controller.text.isEmpty) return;
+              final ok = bind.mainVerifyAdminPassword(password: controller.text);
+              if (ok) {
+                confirmed = true;
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+              } else {
+                setState(() => error = '密码错误，请重新输入');
+              }
             }
-          }
 
-          return AlertDialog(
-            title: const Text('管理员验证'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('请输入管理员密码以进入设置'),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  obscureText: true,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: '管理员密码',
-                    errorText: error.isEmpty ? null : error,
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('管理员验证',
+                      style:
+                          TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  const Text('请输入管理员密码以进入设置',
+                      style: TextStyle(fontSize: 13)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    obscureText: true,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: '管理员密码',
+                      isDense: true,
+                      errorText: error.isEmpty ? null : error,
+                    ),
+                    onSubmitted: (_) => submit(),
                   ),
-                  onSubmitted: (_) => submit(),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('取消'),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: submit,
+                        child: const Text('确认'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: submit,
-                child: const Text('确认'),
-              ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       );
     },
   );
