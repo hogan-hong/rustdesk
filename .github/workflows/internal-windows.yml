@@ -133,7 +133,10 @@ jobs:
           pushd res/msi
           python preprocess.py --arp -d ../../rustdesk
           nuget restore msi.sln
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+          if (-not $msbuild) { $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe" }
+          Write-Host "msbuild: $msbuild"
+          & $msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
           popd
           $msi = Get-ChildItem ./res/msi/Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
           mv $msi.FullName ./rustdesk-internal-host-windows-x64.msi
@@ -145,8 +148,10 @@ jobs:
           git checkout -- res/msi
           pushd res/msi
           python preprocess.py --arp -d ../../rustdesk
-          msbuild msi.sln -t:clean -p:Configuration=Release -p:Platform=x64
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
+          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+          if (-not $msbuild) { $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe" }
+          & $msbuild msi.sln -t:clean -p:Configuration=Release -p:Platform=x64
+          & $msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
           popd
           $msi = Get-ChildItem ./res/msi/Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
           mv $msi.FullName ./rustdesk-internal-full-windows-x64.msi
