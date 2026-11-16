@@ -734,6 +734,11 @@ Future<void> windowOnTop(int? id) async {
   if (!isDesktop) {
     return;
   }
+  // Internal incoming-only build: never bring the hidden CM/main window up
+  // when a client connects (_addTab) or on any other event.
+  if (bind.isIncomingOnly()) {
+    return;
+  }
   print("Bring window '$id' on top");
   if (id == null) {
     // main window
