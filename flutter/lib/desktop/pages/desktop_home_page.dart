@@ -90,12 +90,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         child: loadLogo(),
       ),
       buildTip(context),
-      if (bind.isIncomingOnly())
-        _buildIpBoard(context)
-      else if (!isOutgoingOnly)
-        buildIDBoard(context),
-      if (!isOutgoingOnly && !bind.isIncomingOnly())
-        buildPasswordBoard(context),
+      // Internal build: show the local IP instead of the rendezvous-assigned
+      // ID, and drop the one-time-password board entirely.
+      if (!isOutgoingOnly) _buildIpBoard(context),
       FutureBuilder<Widget>(
         future: Future.value(
             Obx(() => buildHelpCards(stateGlobal.updateUrl.value))),
@@ -225,10 +222,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                           },
                           child: Align(
                             alignment: Alignment.centerLeft,
-                            child: Text(
-                              ip.isEmpty ? '-' : ip,
-                              style: TextStyle(fontSize: 22),
-                              overflow: TextOverflow.ellipsis,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                ip.isEmpty ? '-' : ip,
+                                style: TextStyle(fontSize: 22),
+                                maxLines: 1,
+                              ),
                             ),
                           ),
                         );

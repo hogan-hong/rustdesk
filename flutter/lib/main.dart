@@ -334,6 +334,15 @@ showCmWindow({bool isStartup = false}) async {
 
 hideCmWindow({bool isStartup = false}) async {
   if (isStartup) {
+    // Internal incoming-only build: the runner creates this window hidden
+    // and only waitUntilReadyToShow() would show it; hide straight away
+    // without that call so the window never flashes on screen.
+    if (bind.isIncomingOnly()) {
+      await windowManager.ensureInitialized();
+      await windowManager.hide();
+      _isCmReadyToShow = true;
+      return;
+    }
     WindowOptions windowOptions = getHiddenTitleBarWindowOptions(
         size: kConnectionManagerWindowSizeClosedChat);
     windowManager.setOpacity(0);
