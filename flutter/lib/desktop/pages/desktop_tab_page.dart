@@ -154,7 +154,7 @@ Future<bool> showAdminAuthDialog(BuildContext ctx) async {
         builder: (dialogCtx, setState) {
           Future<void> submit() async {
             if (controller.text.isEmpty) return;
-            final ok = await bind.mainVerifyAdminPassword(controller.text);
+            final ok = bind.mainVerifyAdminPassword(password: controller.text);
             if (ok) {
               confirmed = true;
               if (dialogCtx.mounted) Navigator.pop(dialogCtx);

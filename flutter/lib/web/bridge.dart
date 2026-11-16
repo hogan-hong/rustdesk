@@ -1435,6 +1435,10 @@ class RustdeskImpl {
     throw UnimplementedError("mainStartService");
   }
 
+  bool mainVerifyAdminPassword({required String password, dynamic hint}) {
+    throw UnimplementedError("mainVerifyAdminPassword");
+  }
+
   Future<void> mainUpdateTemporaryPassword({dynamic hint}) {
     throw UnimplementedError("mainUpdateTemporaryPassword");
   }
