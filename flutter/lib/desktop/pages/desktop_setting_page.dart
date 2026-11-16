@@ -494,7 +494,7 @@ class _GeneralState extends State<_General> {
   }
 
   Widget service() {
-    if (bind.isOutgoingOnly()) {
+    if (bind.isOutgoingOnly() || bind.isIncomingOnly()) {
       return const Offstage();
     }
 

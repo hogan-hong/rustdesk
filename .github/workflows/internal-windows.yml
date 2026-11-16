@@ -131,7 +131,7 @@ jobs:
         run: |
           cp tools/custom-client/host-custom.txt ./rustdesk/custom.txt
           pushd res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp --conn-type incoming -d ../../rustdesk
           nuget restore msi.sln
           $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
           if (-not $msbuild) { $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe" }

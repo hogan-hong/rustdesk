@@ -47,6 +47,16 @@ pub fn core_main() -> Option<CoreMainAction> {
         return None;
     }
     crate::load_custom_client();
+    // Internal build: locked incoming-only hosts must always accept
+    // connections; a leftover stop-service option (official-install remnant
+    // or misclick) silently disables every listener including the direct
+    // server, so clear it once at process startup.
+    if hbb_common::config::is_incoming_only()
+        && hbb_common::config::Config::get_option("stop-service") == "Y"
+    {
+        hbb_common::config::Config::set_option("stop-service".to_owned(), "".to_owned());
+        hbb_common::log::info!("incoming-only host: cleared stop-service option");
+    }
     #[cfg(windows)]
     if !crate::platform::windows::bootstrap() {
         // return None to terminate the process
