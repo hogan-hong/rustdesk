@@ -477,7 +477,7 @@ pub fn set_option(key: String, value: String) {
         {
             if crate::platform::is_installed() {
                 if value == "Y" {
-                    if crate::config::is_incoming_only() {
+                    if config::is_incoming_only() {
                         // Internal locked hosts: the service must stay installed.
                         // A stop is temporary (listeners only; the option is
                         // cleared at the next process start), so fall through to
@@ -491,7 +491,7 @@ pub fn set_option(key: String, value: String) {
                 } else {
                     #[cfg(target_os = "windows")]
                     {
-                        if crate::config::is_incoming_only() {
+                        if config::is_incoming_only() {
                             if crate::platform::windows::is_self_service_running() {
                                 // Merely paused: the plain option set below makes
                                 // the running service reload and resume listening.
@@ -514,7 +514,7 @@ pub fn set_option(key: String, value: String) {
                         }
                     }
                 }
-                if !crate::config::is_incoming_only() {
+                if !config::is_incoming_only() {
                     return;
                 }
             }
