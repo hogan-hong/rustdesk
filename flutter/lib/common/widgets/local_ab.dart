@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Dialog;
+import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
 
-import '../../common.dart';
+import '../../common.dart' hide Dialog;
 import '../../models/peer_model.dart';
 import '../../models/platform_model.dart';
 
@@ -98,7 +98,6 @@ Future<void> _showTextInputDialog({
             TextField(
               controller: controller,
               autofocus: true,
-              isDense: true,
               decoration: InputDecoration(
                 hintText: hint,
                 isDense: true,
@@ -203,7 +202,6 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
                   Expanded(
                     child: TextField(
                       controller: newGroupController,
-                      isDense: true,
                       decoration: const InputDecoration(
                         hintText: '新建分组名',
                         isDense: true,
@@ -325,7 +323,6 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                   Expanded(
                     child: TextField(
                       controller: newGroupController,
-                      isDense: true,
                       decoration: const InputDecoration(
                         hintText: '新建分组名',
                         isDense: true,
