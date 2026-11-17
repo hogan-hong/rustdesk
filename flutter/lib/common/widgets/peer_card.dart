@@ -16,6 +16,7 @@ import '../../models/platform_model.dart';
 import '../../desktop/widgets/material_mod_popup_menu.dart' as mod_menu;
 import '../../desktop/widgets/popup_menu.dart';
 import 'dart:math' as math;
+import 'local_ab.dart';
 
 typedef PopupMenuEntryBuilder = Future<List<mod_menu.PopupMenuEntry<String>>>
     Function(BuildContext);
@@ -1097,6 +1098,30 @@ class RecentPeerCard extends BasePeerCard {
     if (gFFI.userModel.userName.isNotEmpty) {
       menuItems.add(_addToAb(peer));
     }
+
+    menuItems.add(MenuEntryButton<String>(
+      childBuilder: (style) => Row(
+        children: [
+          Text(
+            '移到分组',
+            style: style,
+          ),
+          Expanded(
+              child: Align(
+            alignment: Alignment.centerRight,
+            child: Transform.scale(
+              scale: 0.8,
+              child: Icon(Icons.drive_file_move_outline),
+            ),
+          ).marginOnly(right: 4)),
+        ],
+      ),
+      proc: () {
+        putPeerToGroupDialog(context, peer.id);
+      },
+      padding: menuPadding,
+      dismissOnClicked: true,
+    ));
 
     menuItems.add(MenuEntryDivider());
     menuItems.add(_removeAction(peer.id));

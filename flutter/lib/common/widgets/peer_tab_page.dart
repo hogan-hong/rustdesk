@@ -4,6 +4,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/address_book.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
+import 'package:flutter_hbb/common/widgets/local_ab.dart';
 import 'package:flutter_hbb/common/widgets/my_group.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
@@ -55,12 +56,10 @@ class _PeerTabPageState extends State<PeerTabPage>
       menuPadding: _menuPadding(),
     )),
     _TabEntry(
-        AddressBook(
+        LocalAddressBook(
           menuPadding: _menuPadding(),
         ),
-        ({dynamic hint}) => gFFI.abModel.pullAb(
-            force: hint == null ? ForcePullAb.listAndCurrent : null,
-            quiet: false)),
+        ({dynamic hint}) async {}),
     _TabEntry(
       MyGroup(
         menuPadding: _menuPadding(),
