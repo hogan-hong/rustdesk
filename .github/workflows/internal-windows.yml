@@ -144,7 +144,7 @@ jobs:
       - name: Build full MSI
         shell: pwsh
         run: |
-          rm ./rustdesk/custom.txt
+          cp tools/custom-client/full-custom.txt ./rustdesk/custom.txt
           git checkout -- res/msi
           pushd res/msi
           python preprocess.py --arp -d ../../rustdesk
