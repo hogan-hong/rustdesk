@@ -228,14 +228,17 @@ class LocalAbStore {
 }
 
 Dialog _wrapDialog(Widget child, {double? width}) {
+  final content = Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: child,
+  );
   return Dialog(
-    child: SizedBox(
-      width: width ?? 420,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: child,
-      ),
-    ),
+    child: width == null
+        ? ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: content,
+          )
+        : SizedBox(width: width, child: content),
   );
 }
 
@@ -250,8 +253,7 @@ Future<void> _showTextInputDialog({
       context: context,
       builder: (dialogContext) {
         return _wrapDialog(
-            width: 320,
-            child: Column(
+            Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -291,7 +293,8 @@ Future<void> _showTextInputDialog({
                   ],
                 ),
               ],
-            ));
+            ),
+            width: 320);
       });
 }
 
@@ -507,7 +510,8 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
       context: context,
       builder: (dialogContext) {
         return _wrapDialog(StatefulBuilder(builder: (ctx, setState) {
-          final sub = Theme.of(ctx).textTheme.titleLarge?.color?.withOpacity(0.6);
+          final sub =
+              Theme.of(ctx).textTheme.titleLarge?.color?.withOpacity(0.6);
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
