@@ -354,8 +354,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                               IconButton(
                                 tooltip: '重命名分组',
                                 visualDensity: VisualDensity.compact,
-                                icon:
-                                    const Icon(Icons.edit_outline, size: 18),
+                                icon: const Icon(Icons.edit, size: 18),
                                 onPressed: () {
                                   setState(() {
                                     editingIndex = index;
