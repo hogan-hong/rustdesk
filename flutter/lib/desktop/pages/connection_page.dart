@@ -298,7 +298,6 @@ class _ConnectionPageState extends State<ConnectionPage>
 
   @override
   Widget build(BuildContext context) {
-    final isOutgoingOnly = bind.isOutgoingOnly();
     if (!widget.showPeers) {
       // compact mode: only the connect card, peer list lives below the split
       return Align(
