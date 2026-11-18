@@ -153,8 +153,6 @@ class _PeerTabPageState extends State<PeerTabPage>
               color: Theme.of(context).colorScheme.background,
               borderRadius: BorderRadius.circular(6));
           final decoBorder = BoxDecoration(
-              color: Theme.of(context).colorScheme.background,
-              borderRadius: BorderRadius.circular(6),
               border: Border(
                 bottom: BorderSide(width: 2, color: color!),
               ));
@@ -167,15 +165,18 @@ class _PeerTabPageState extends State<PeerTabPage>
                     message: model.tabTooltip(t),
                     onTriggered: isMobile ? mobileShowTabVisibilityMenu : null,
                     child: InkWell(
+                      splashFactory: NoSplash.splashFactory,
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      focusColor: Colors.transparent,
                       child: Container(
                         decoration: (hover.value
                             ? (selected ? decoBorder : deco)
                             : (selected ? decoBorder : null)),
                         child: Icon(model.tabIcon(t), color: color, size: 18)
                             .paddingSymmetric(horizontal: 4),
-                      )
-                          .paddingSymmetric(horizontal: 4)
-                          .marginSymmetric(horizontal: 1),
+                      ).paddingSymmetric(horizontal: 4),
                       onTap: isOptionFixed(kOptionPeerTabIndex)
                           ? null
                           : () async {
@@ -777,22 +778,32 @@ class _PeerSearchBarState extends State<PeerSearchBar> {
                       ).workaroundFreezeLinuxMint(),
                     ),
                     // Icon(Icons.close),
-                    IconButton(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 2),
-                      onPressed: () {
-                        setState(() {
-                          peerSearchTextController.clear();
-                          peerSearchText.value = "";
-                          drawer = false;
-                        });
-                      },
-                      icon: Tooltip(
-                          message: translate('Close'),
+                    Tooltip(
+                      message: translate('Close'),
+                      child: SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          splashFactory: NoSplash.splashFactory,
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          hoverColor:
+                              Theme.of(context).hintColor.withOpacity(0.08),
+                          onTap: () {
+                            setState(() {
+                              peerSearchTextController.clear();
+                              peerSearchText.value = "";
+                              drawer = false;
+                            });
+                          },
                           child: Icon(
                             Icons.close,
+                            size: 18,
                             color: Theme.of(context).hintColor,
-                          )),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1056,6 +1067,11 @@ Widget _hoverAction(
           decoration:
               (hover.value || hoverableWhenfalse?.value == false) ? deco : null,
           child: InkWell(
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
               onHover: (value) => hover.value = value,
               onTap: onTap,
               onTapDown: onTapDown,

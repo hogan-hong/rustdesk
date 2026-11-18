@@ -227,6 +227,57 @@ class LocalAbStore {
   }
 }
 
+/// compact icon button with a small rounded hover background instead of
+/// Material's oversized 48px circular ripple
+class MiniIconButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+
+  const MiniIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+  });
+
+  @override
+  State<MiniIconButton> createState() => _MiniIconButtonState();
+}
+
+class _MiniIconButtonState extends State<MiniIconButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor =
+        widget.color ?? Theme.of(context).textTheme.titleLarge?.color;
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _hover ? iconColor?.withOpacity(0.10) : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(widget.icon, size: 18, color: iconColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Dialog _wrapDialog(Widget child, {double? width}) {
   final content = Padding(
     padding: const EdgeInsets.all(16.0),
@@ -378,9 +429,9 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
                       ),
                     ),
                   ),
-                  IconButton(
+                  MiniIconButton(
                     tooltip: '新建分组',
-                    icon: const Icon(Icons.add),
+                    icon: Icons.add,
                     onPressed: () {
                       final text = newGroupController.text.trim();
                       if (text.isEmpty) {
@@ -392,7 +443,7 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
                         selected.add(name);
                         newGroupController.clear();
                       });
-                    },
+                    }
                   ),
                 ],
               ),
@@ -543,7 +594,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 300),
                 child: groups.isEmpty
-                    ? Text('暂无分组', style: TextStyle(fontSize: 13, color: sub))
+                    ? Text('暂无分组', style: TextStyle(fontSize: 14, color: sub))
                     : ReorderableListView(
                         shrinkWrap: true,
                         buildDefaultDragHandles: false,
@@ -578,13 +629,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                     ),
                                   ),
                                 ),
-                                IconButton(
+                                MiniIconButton(
                                   tooltip: '确认改名',
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 26, minHeight: 26),
-                                  icon: const Icon(Icons.check, size: 18),
+                                  icon: Icons.check,
                                   onPressed: () {
                                     final text = renameController.text.trim();
                                     if (text.isEmpty) return;
@@ -609,13 +656,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                     });
                                   },
                                 ),
-                                IconButton(
+                                MiniIconButton(
                                   tooltip: '取消',
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 26, minHeight: 26),
-                                  icon: const Icon(Icons.close, size: 18),
+                                  icon: Icons.close,
                                   onPressed: () =>
                                       setState(() => editingIndex = null),
                                 ),
@@ -640,13 +683,13 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                     if (path.isNotEmpty) ...[
                                       Text('$path / ',
                                           style: TextStyle(
-                                              fontSize: 12, color: sub)),
+                                              fontSize: 13, color: sub)),
                                     ],
                                     Flexible(
                                       child: Text(
                                         g.name,
                                         style:
-                                            const TextStyle(fontSize: 14),
+                                            const TextStyle(fontSize: 15),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -671,7 +714,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                     value: '__root__',
                                     height: 32,
                                     child: Text('顶级分组',
-                                        style: const TextStyle(fontSize: 13)),
+                                        style: const TextStyle(fontSize: 14)),
                                   ),
                                   ...groups
                                       .where((x) =>
@@ -684,7 +727,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                             height: 32,
                                             child: Text('归入 ${x.name}',
                                                 style: const TextStyle(
-                                                    fontSize: 13)),
+                                                    fontSize: 14)),
                                           )),
                                 ],
                                 child: Icon(Icons.account_tree_outlined,
@@ -693,13 +736,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                         ? sub
                                         : MyTheme.accent),
                               ),
-                              IconButton(
+                              MiniIconButton(
                                 tooltip: '重命名分组',
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 26, minHeight: 26),
-                                icon: const Icon(Icons.edit, size: 18),
+                                icon: Icons.edit,
                                 onPressed: () {
                                   setState(() {
                                     editingIndex = index;
@@ -707,14 +746,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                   });
                                 },
                               ),
-                              IconButton(
+                              MiniIconButton(
                                 tooltip: '删除分组',
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 26, minHeight: 26),
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 18),
+                                icon: Icons.delete_outline,
                                 onPressed: () {
                                   setState(() {
                                     if (editingIndex == index) {
@@ -748,13 +782,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                       ),
                     ),
                   ),
-                  IconButton(
+                  MiniIconButton(
                     tooltip: '新建分组',
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 26, minHeight: 26),
-                    icon: const Icon(Icons.add),
+                    icon: Icons.add,
                     onPressed: () {
                       final text = newGroupController.text.trim();
                       if (text.isEmpty) return;
@@ -771,13 +801,13 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
               Row(
                 children: [
                   Text('上级：',
-                      style: TextStyle(fontSize: 12, color: sub)),
+                      style: TextStyle(fontSize: 13, color: sub)),
                   DropdownButton<String>(
                     value: newGroupParent,
                     isDense: true,
                     underline: const SizedBox(),
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: Theme.of(ctx)
                             .textTheme
                             .titleLarge
@@ -786,11 +816,11 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                     items: [
                       const DropdownMenuItem(
                           value: '', child: Text('顶级分组',
-                              style: TextStyle(fontSize: 12))),
+                              style: TextStyle(fontSize: 13))),
                       ...groups.map((g) => DropdownMenuItem(
                             value: g.name,
                             child: Text(g.name,
-                                style: const TextStyle(fontSize: 12)),
+                                style: const TextStyle(fontSize: 13)),
                           )),
                     ],
                     onChanged: (v) =>
@@ -937,10 +967,9 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
               ],
             ),
           ),
-          IconButton(
+          MiniIconButton(
             tooltip: '新建分组',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.add, size: 18),
+            icon: Icons.add,
             onPressed: () {
               _showTextInputDialog(
                   context: context,
@@ -955,10 +984,9 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
                   });
             },
           ),
-          IconButton(
+          MiniIconButton(
             tooltip: '分组管理',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.settings_outlined, size: 18),
+            icon: Icons.settings_outlined,
             onPressed: () => manageLocalAbGroupsDialog(context),
           ),
         ],
@@ -1077,13 +1105,9 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
+                MiniIconButton(
                   tooltip: '新建分组',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  icon: const Icon(Icons.add, size: 18),
+                  icon: Icons.add,
                   onPressed: () {
                     _showTextInputDialog(
                         context: context,
@@ -1102,13 +1126,9 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
                         });
                   },
                 ),
-                IconButton(
+                MiniIconButton(
                   tooltip: '分组管理',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints(minWidth: 28, minHeight: 28),
-                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  icon: Icons.settings_outlined,
                   onPressed: () => manageLocalAbGroupsDialog(context),
                 ),
               ],

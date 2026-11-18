@@ -1517,10 +1517,15 @@ Widget build_more(BuildContext context,
   final RxBool hover = false.obs;
   final button = InkWell(
       borderRadius: BorderRadius.circular(14),
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      focusColor: Colors.transparent,
       onTap: onTap ?? () {},
       onHover: (value) => hover.value = value,
       child: Obx(() => CircleAvatar(
-          radius: 14,
+          radius: 12,
           backgroundColor: hover.value
               ? (invert
                   ? Theme.of(context).colorScheme.background
