@@ -914,6 +914,7 @@ abstract class BasePeerCard extends StatelessWidget {
           switch (tab) {
             case PeerTabIndex.recent:
               await bind.mainRemovePeer(id: id);
+              await LocalAbStore.removePeersFromGroups([id]);
               bind.mainLoadRecentPeers();
               break;
             case PeerTabIndex.fav:

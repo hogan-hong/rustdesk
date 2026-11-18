@@ -54,6 +54,22 @@ class LocalAbStore {
     }
   }
 
+  /// drop the given peer ids from every group (used when peers are deleted)
+  static Future<void> removePeersFromGroups(Iterable<String> ids) async {
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return;
+    final groups = load();
+    var changed = false;
+    for (final g in groups) {
+      final before = g.peers.length;
+      g.peers.removeWhere(idSet.contains);
+      if (g.peers.length != before) changed = true;
+    }
+    if (changed) {
+      await save(groups);
+    }
+  }
+
   static Future<bool> save(List<LocalAbGroup> groups) async {
     try {
       final s = jsonEncode(groups.map((g) => g.toJson()).toList());
@@ -636,7 +652,7 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
   }
 
   Widget _buildSideItem(
-      String name, int count, bool selected, GestureTapCallback onTap) {
+      String name, bool selected, GestureTapCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: InkWell(
@@ -667,22 +683,6 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (count >= 0) ...[
-                const SizedBox(width: 4),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: selected
-                        ? Colors.white.withOpacity(0.85)
-                        : Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.color
-                            ?.withOpacity(0.45),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -750,11 +750,11 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               children: [
-                _buildSideItem('全部', -1, selectedGroup.isEmpty, () {
+                _buildSideItem('全部', selectedGroup.isEmpty, () {
                   setState(() => selectedGroup = '');
                 }),
-                ...groups.map((g) => _buildSideItem(g.name, g.peers.length,
-                    selectedGroup == g.name, () {
+                ...groups.map((g) =>
+                    _buildSideItem(g.name, selectedGroup == g.name, () {
                   setState(() => selectedGroup = g.name);
                 })),
               ],

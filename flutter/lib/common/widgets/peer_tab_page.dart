@@ -415,13 +415,19 @@ class _PeerTabPageState extends State<PeerTabPage>
                 bind.mainLoadLanPeers();
                 break;
               case 3:
-                await gFFI.abModel.deletePeers(peers.map((p) => p.id).toList());
+                // tab 3 is the local (server-less) address book in this build
+                for (var p in peers) {
+                  await bind.mainRemovePeer(id: p.id);
+                }
+                await LocalAbStore.removePeersFromGroups(
+                    peers.map((p) => p.id).toList());
+                bind.mainLoadRecentPeers();
                 break;
               default:
                 break;
             }
             gFFI.peerTabModel.setMultiSelectionMode(false);
-            if (model.currentTab != 3) showToast(translate('Successful'));
+            showToast(translate('Successful'));
           }
 
           deleteConfirmDialog(onSubmit, translate('Delete'));
