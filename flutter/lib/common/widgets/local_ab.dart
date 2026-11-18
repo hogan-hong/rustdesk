@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
@@ -13,11 +15,15 @@ const String kOptionLocalAbGroups = 'local-ab-groups';
 
 class LocalAbGroup {
   String name;
+
+  /// parent group name; empty means top level
+  String parent;
   final List<String> peers;
-  LocalAbGroup({required this.name, List<String>? peers})
+  LocalAbGroup({required this.name, this.parent = '', List<String>? peers})
       : peers = peers ?? [];
 
-  Map<String, dynamic> toJson() => {'name': name, 'peers': peers};
+  Map<String, dynamic> toJson() =>
+      {'name': name, 'parent': parent, 'peers': peers};
 }
 
 class LocalAbStore {
@@ -37,7 +43,8 @@ class LocalAbStore {
               final m = e as Map<String, dynamic>;
               return LocalAbGroup(
                 name: m['name'] as String,
-                peers: (m['peers'] as List<dynamic>)
+                parent: (m['parent'] as String?) ?? '',
+                peers: ((m['peers'] as List<dynamic>?) ?? const [])
                     .map((e) => e.toString())
                     .toList(),
               );
@@ -68,6 +75,143 @@ class LocalAbStore {
     if (changed) {
       await save(groups);
     }
+  }
+
+  /// direct children of [parent] ('' = top level), keeping stored order
+  static List<LocalAbGroup> childrenOf(
+      List<LocalAbGroup> groups, String parent) {
+    final names = groups.map((g) => g.name).toSet();
+    return groups
+        .where((g) => parent.isEmpty
+            ? (g.parent.isEmpty || !names.contains(g.parent))
+            : g.parent == parent)
+        .toList();
+  }
+
+  /// group names under [name] including itself, depth first (cycle safe)
+  static List<String> descendantsOf(List<LocalAbGroup> groups, String name) {
+    final out = <String>[];
+    final seen = <String>{};
+    void walk(String n) {
+      if (!seen.add(n)) return;
+      out.add(n);
+      for (final c in groups.where((g) => g.parent == n)) {
+        walk(c.name);
+      }
+    }
+
+    walk(name);
+    return out;
+  }
+
+  /// peer ids of [name] and all nested groups below it
+  static Set<String> peerIdsOfGroup(List<LocalAbGroup> groups, String name) {
+    final names = descendantsOf(groups, name).toSet();
+    return groups
+        .where((g) => names.contains(g.name))
+        .expand((g) => g.peers)
+        .toSet();
+  }
+
+  /// remove [name] and re-parent its children to its own parent
+  static Future<void> deleteGroup(String name) async {
+    final groups = load();
+    LocalAbGroup? target;
+    for (final g in groups) {
+      if (g.name == name) {
+        target = g;
+        break;
+      }
+    }
+    if (target == null) return;
+    final newParent = target.parent;
+    groups.removeWhere((g) => g.name == name);
+    for (final g in groups) {
+      if (g.parent == name) g.parent = newParent;
+    }
+    await save(groups);
+  }
+
+  static String exportJson() => jsonEncode({
+        'type': 'rustdesk-local-ab',
+        'version': 1,
+        'groups': load().map((g) => g.toJson()).toList(),
+      });
+
+  /// merge an exported snapshot; returns [newGroups, newPeers]
+  static Future<List<int>> importJson(String raw,
+      {bool replace = false}) async {
+    final decoded = jsonDecode(raw);
+    List<dynamic> list;
+    if (decoded is Map && decoded['groups'] is List) {
+      list = decoded['groups'] as List;
+    } else if (decoded is List) {
+      list = decoded;
+    } else {
+      throw const FormatException('无法识别的文件格式');
+    }
+    final incoming = <LocalAbGroup>[];
+    for (final e in list) {
+      if (e is! Map) continue;
+      final name = (e['name'] ?? '').toString().trim();
+      if (name.isEmpty) continue;
+      incoming.add(LocalAbGroup(
+        name: name,
+        parent: (e['parent'] ?? '').toString(),
+        peers: ((e['peers'] as List?) ?? const [])
+            .map((x) => x.toString())
+            .toList(),
+      ));
+    }
+    if (incoming.isEmpty) {
+      throw const FormatException('文件里没有可导入的分组');
+    }
+    final groups = replace ? <LocalAbGroup>[] : load();
+    final order = groups.map((g) => g.name).toSet();
+    final importedNames = <String, String>{};
+    var newGroups = 0;
+    var newPeers = 0;
+    for (final inc in incoming) {
+      var name = inc.name;
+      LocalAbGroup? existing;
+      for (final g in groups) {
+        if (g.name == name) {
+          existing = g;
+          break;
+        }
+      }
+      if (existing == null) {
+        var finalName = name;
+        if (order.contains(finalName)) {
+          var i = 2;
+          while (order.contains('$name($i)')) {
+            i++;
+          }
+          finalName = '$name($i)';
+        }
+        var parent = inc.parent;
+        if (parent.isNotEmpty) {
+          parent = importedNames[parent] ?? parent;
+          if (!groups.any((g) => g.name == parent)) parent = '';
+        }
+        groups.add(LocalAbGroup(
+            name: finalName, parent: parent, peers: inc.peers.toList()));
+        order.add(finalName);
+        importedNames[inc.name] = finalName;
+        newGroups++;
+        newPeers += inc.peers.length;
+      } else {
+        importedNames[inc.name] = existing.name;
+        for (final id in inc.peers) {
+          if (!existing.peers.contains(id)) {
+            existing.peers.add(id);
+            newPeers++;
+          }
+        }
+      }
+    }
+    await save(groups);
+    return [newGroups, newPeers];
   }
 
   static Future<bool> save(List<LocalAbGroup> groups) async {
@@ -277,46 +421,125 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
       });
 }
 
-/// dialog: manage local groups (create / rename / delete / reorder)
+/// export the local address book (groups + hierarchy) to a JSON file
+Future<String?> _exportLocalAb(BuildContext context) async {
+  try {
+    final ts = DateTime.now();
+    final stamp = '${ts.year}${ts.month.toString().padLeft(2, '0')}'
+        '${ts.day.toString().padLeft(2, '0')}';
+    String? path = await FilePicker.platform.saveFile(
+      dialogTitle: '导出通讯录',
+      fileName: 'rustdesk_ab_$stamp.json',
+      allowedExtensions: ['json'],
+      type: FileType.custom,
+    );
+    if (path == null || path.isEmpty) return null;
+    if (!path.toLowerCase().endsWith('.json')) {
+      path = '$path.json';
+    }
+    final data = LocalAbStore.exportJson();
+    await File(path).writeAsString(data, encoding: utf8);
+    showToast('已导出到 $path');
+    return path;
+  } catch (e) {
+    showToast('导出失败: $e');
+    return null;
+  }
+}
+
+/// import a JSON address book; returns (groups, peers) summary on success
+Future<List<int>?> _importLocalAb(BuildContext context) async {
+  try {
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json', 'txt'],
+      withData: true,
+    );
+    if (res == null || res.files.isEmpty) return null;
+    final f = res.files.first;
+    String raw;
+    if (f.bytes != null) {
+      raw = utf8.decode(f.bytes!, allowMalformed: true);
+    } else if (f.path != null) {
+      raw = await File(f.path!).readAsString(encoding: utf8);
+    } else {
+      return null;
+    }
+    final summary = await LocalAbStore.importJson(raw);
+    showToast(
+        '导入完成：新增 ${summary[0]} 个分组，${summary[1]} 台设备');
+    return summary;
+  } catch (e) {
+    showToast('导入失败: $e');
+    return null;
+  }
+}
+
+/// dialog: manage local groups (create / rename / delete / reorder / nesting)
 Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
   final groups = LocalAbStore.load();
   final newGroupController = TextEditingController();
+  String newGroupParent = '';
   int? editingIndex;
   final renameController = TextEditingController();
   final dragKeys = {for (final g in groups) g: UniqueKey()};
   Key keyFor(LocalAbGroup g) => dragKeys.putIfAbsent(g, () => UniqueKey());
+  String pathOf(LocalAbGroup g) {
+    final parts = <String>[];
+    var cur = g.parent;
+    var guard = 0;
+    while (cur.isNotEmpty && guard++ < 16) {
+      final p = groups.where((x) => x.name == cur).toList();
+      if (p.isEmpty) break;
+      parts.insert(0, cur);
+      cur = p.first.parent;
+    }
+    return parts.join(' / ');
+  }
+
   await showDialog(
       context: context,
       builder: (dialogContext) {
         return _wrapDialog(StatefulBuilder(builder: (ctx, setState) {
+          final sub = Theme.of(ctx).textTheme.titleLarge?.color?.withOpacity(0.6);
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '分组管理',
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+              Row(
+                children: [
+                  Text(
+                    '分组管理',
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w500),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => _exportLocalAb(context),
+                    child: const Text('导出'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final res = await _importLocalAb(context);
+                      if (res != null && dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
+                    },
+                    child: const Text('导入'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 260),
+                constraints: const BoxConstraints(maxHeight: 300),
                 child: groups.isEmpty
-                    ? Text(
-                        '暂无分组',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(ctx).textTheme.titleLarge?.color
-                                ?.withOpacity(0.6)),
-                      )
+                    ? Text('暂无分组', style: TextStyle(fontSize: 13, color: sub))
                     : ReorderableListView(
                         shrinkWrap: true,
                         buildDefaultDragHandles: false,
                         onReorder: (oldIndex, newIndex) {
                           setState(() {
-                            if (newIndex > oldIndex) {
-                              newIndex -= 1;
-                            }
+                            if (newIndex > oldIndex) newIndex -= 1;
                             final g = groups.removeAt(oldIndex);
                             groups.insert(newIndex, g);
                             if (editingIndex == oldIndex) {
@@ -332,15 +555,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                               children: [
                                 ReorderableDragStartListener(
                                   index: index,
-                                  child: Icon(
-                                    Icons.drag_indicator,
-                                    size: 16,
-                                    color: Theme.of(ctx)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.color
-                                        ?.withOpacity(0.4),
-                                  ),
+                                  child: Icon(Icons.drag_indicator, size: 16),
                                 ),
                                 Expanded(
                                   child: TextField(
@@ -362,9 +577,7 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                   icon: const Icon(Icons.check, size: 18),
                                   onPressed: () {
                                     final text = renameController.text.trim();
-                                    if (text.isEmpty) {
-                                      return;
-                                    }
+                                    if (text.isEmpty) return;
                                     var name = text;
                                     var j = 2;
                                     while (groups.any((g2) =>
@@ -373,8 +586,15 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                       name = '$text($j)';
                                       j++;
                                     }
+                                    final oldName = g.name;
                                     setState(() {
                                       g.name = name;
+                                      // re-parent children pointing at old name
+                                      for (final c in groups) {
+                                        if (c.parent == oldName) {
+                                          c.parent = name;
+                                        }
+                                      }
                                       editingIndex = null;
                                     });
                                   },
@@ -386,13 +606,13 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                   constraints: const BoxConstraints(
                                       minWidth: 26, minHeight: 26),
                                   icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () {
-                                    setState(() => editingIndex = null);
-                                  },
+                                  onPressed: () =>
+                                      setState(() => editingIndex = null),
                                 ),
                               ],
                             );
                           }
+                          final path = pathOf(g);
                           return Row(
                             key: keyFor(g),
                             children: [
@@ -401,18 +621,67 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                 child: Icon(
                                   Icons.drag_indicator,
                                   size: 16,
-                                  color: Theme.of(ctx)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.color
-                                      ?.withOpacity(0.4),
+                                  color: sub,
                                 ),
                               ),
                               Expanded(
-                                child: Text(
-                                  '${g.name} (${g.peers.length})',
-                                  style: const TextStyle(fontSize: 14),
+                                child: Row(
+                                  children: [
+                                    if (path.isNotEmpty) ...[
+                                      Text('$path / ',
+                                          style: TextStyle(
+                                              fontSize: 12, color: sub)),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        g.name,
+                                        style:
+                                            const TextStyle(fontSize: 14),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: '设置上级分组',
+                                enabled: true,
+                                padding: EdgeInsets.zero,
+                                onSelected: (v) {
+                                  setState(() {
+                                    if (v == '__root__') {
+                                      g.parent = '';
+                                    } else if (v != g.name) {
+                                      g.parent = v;
+                                    }
+                                  });
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: '__root__',
+                                    height: 32,
+                                    child: Text('顶级分组',
+                                        style: const TextStyle(fontSize: 13)),
+                                  ),
+                                  ...groups
+                                      .where((x) =>
+                                          x.name != g.name &&
+                                          !LocalAbStore.descendantsOf(
+                                                  groups, g.name)
+                                              .contains(x.name))
+                                      .map((x) => PopupMenuItem(
+                                            value: x.name,
+                                            height: 32,
+                                            child: Text('归入 ${x.name}',
+                                                style: const TextStyle(
+                                                    fontSize: 13)),
+                                          )),
+                                ],
+                                child: Icon(Icons.account_tree_outlined,
+                                    size: 18,
+                                    color: g.parent.isEmpty
+                                        ? sub
+                                        : MyTheme.accent),
                               ),
                               IconButton(
                                 tooltip: '重命名分组',
@@ -441,7 +710,13 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                     if (editingIndex == index) {
                                       editingIndex = null;
                                     }
+                                    final newParent = g.parent;
                                     groups.remove(g);
+                                    for (final c in groups) {
+                                      if (c.parent == g.name) {
+                                        c.parent = newParent;
+                                      }
+                                    }
                                   });
                                 },
                               ),
@@ -472,18 +747,48 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                     icon: const Icon(Icons.add),
                     onPressed: () {
                       final text = newGroupController.text.trim();
-                      if (text.isEmpty) {
-                        return;
-                      }
+                      if (text.isEmpty) return;
                       setState(() {
-                        groups.add(LocalAbGroup(name: _uniqueName(groups, text)));
+                        groups.add(LocalAbGroup(
+                            name: _uniqueName(groups, text),
+                            parent: newGroupParent));
                         newGroupController.clear();
                       });
                     },
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Text('上级：',
+                      style: TextStyle(fontSize: 12, color: sub)),
+                  DropdownButton<String>(
+                    value: newGroupParent,
+                    isDense: true,
+                    underline: const SizedBox(),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(ctx)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withOpacity(0.8)),
+                    items: [
+                      const DropdownMenuItem(
+                          value: '', child: Text('顶级分组',
+                              style: TextStyle(fontSize: 12))),
+                      ...groups.map((g) => DropdownMenuItem(
+                            value: g.name,
+                            child: Text(g.name,
+                                style: const TextStyle(fontSize: 12)),
+                          )),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => newGroupParent = v ?? ''),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -524,10 +829,7 @@ class LocalAbPeersView extends BasePeersView {
         );
 
   static PeerFilter _makeGroupFilter(String group) {
-    final ids = LocalAbStore.load()
-        .where((g) => g.name == group)
-        .expand((g) => g.peers)
-        .toSet();
+    final ids = LocalAbStore.peerIdsOfGroup(LocalAbStore.load(), group);
     return (Peer peer) => ids.contains(peer.id);
   }
 
@@ -550,6 +852,9 @@ class LocalAddressBook extends StatefulWidget {
 class _LocalAddressBookState extends State<LocalAddressBook> {
   /// '' means all peers
   String selectedGroup = '';
+
+  /// group names whose children are hidden
+  final Set<String> _collapsed = <String>{};
 
   @override
   void initState() {
@@ -652,32 +957,52 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
   }
 
   Widget _buildSideItem(
-      String name, bool selected, GestureTapCallback onTap) {
+    String name, {
+    required bool selected,
+    required int depth,
+    required bool hasChildren,
+    required bool expanded,
+    required GestureTapCallback onTap,
+    GestureTapCallback? onToggle,
+  }) {
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: EdgeInsets.only(
+              left: 4.0 + depth * 14.0, right: 8, top: 6, bottom: 6),
           decoration: BoxDecoration(
             color: selected ? MyTheme.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             children: [
+              SizedBox(
+                width: 16,
+                child: hasChildren
+                    ? InkWell(
+                        onTap: onToggle,
+                        child: Icon(
+                          expanded
+                              ? Icons.keyboard_arrow_down
+                              : Icons.keyboard_arrow_right,
+                          size: 16,
+                          color: selected
+                              ? Colors.white
+                              : textColor?.withOpacity(0.6),
+                        ),
+                      )
+                    : null,
+              ),
               Expanded(
                 child: Text(
                   name,
                   style: TextStyle(
                     fontSize: 13,
-                    color: selected
-                        ? Colors.white
-                        : Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.color
-                            ?.withOpacity(0.8),
+                    color: selected ? Colors.white : textColor?.withOpacity(0.8),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -690,9 +1015,38 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
     );
   }
 
+  /// flatten the group tree into side-bar rows honouring collapsed state
+  List<Widget> _buildTreeRows(List<LocalAbGroup> groups, String parent, int depth) {
+    final rows = <Widget>[];
+    if (depth > 12) return rows;
+    for (final g in LocalAbStore.childrenOf(groups, parent)) {
+      final children = LocalAbStore.childrenOf(groups, g.name);
+      final expanded = !_collapsed.contains(g.name);
+      rows.add(_buildSideItem(
+        g.name,
+        selected: selectedGroup == g.name,
+        depth: depth,
+        hasChildren: children.isNotEmpty,
+        expanded: expanded,
+        onTap: () => setState(() => selectedGroup = g.name),
+        onToggle: () => setState(() {
+          if (expanded) {
+            _collapsed.add(g.name);
+          } else {
+            _collapsed.remove(g.name);
+          }
+        }),
+      ));
+      if (expanded && children.isNotEmpty) {
+        rows.addAll(_buildTreeRows(groups, g.name, depth + 1));
+      }
+    }
+    return rows;
+  }
+
   Widget _buildGroupSidebar(List<LocalAbGroup> groups) {
     return SizedBox(
-      width: 170,
+      width: 185,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -728,7 +1082,11 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
                         onOk: (dialogContext, text) async {
                           final groups = LocalAbStore.load();
                           final name = _uniqueName(groups, text);
-                          groups.add(LocalAbGroup(name: name));
+                          groups.add(LocalAbGroup(
+                              name: name, parent: selectedGroup));
+                          if (selectedGroup.isNotEmpty) {
+                            _collapsed.remove(selectedGroup);
+                          }
                           await LocalAbStore.save(groups);
                           setState(() => selectedGroup = name);
                         });
@@ -750,13 +1108,15 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               children: [
-                _buildSideItem('全部', selectedGroup.isEmpty, () {
-                  setState(() => selectedGroup = '');
-                }),
-                ...groups.map((g) =>
-                    _buildSideItem(g.name, selectedGroup == g.name, () {
-                  setState(() => selectedGroup = g.name);
-                })),
+                _buildSideItem(
+                  '全部',
+                  selected: selectedGroup.isEmpty,
+                  depth: 0,
+                  hasChildren: false,
+                  expanded: false,
+                  onTap: () => setState(() => selectedGroup = ''),
+                ),
+                ..._buildTreeRows(groups, '', 0),
               ],
             ),
           ),

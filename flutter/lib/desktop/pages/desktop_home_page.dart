@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
+import 'package:flutter_hbb/common/widgets/peer_tab_page.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
@@ -59,13 +60,37 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Widget build(BuildContext context) {
     super.build(context);
     final isIncomingOnly = bind.isIncomingOnly();
+    final isOutgoingOnly = bind.isOutgoingOnly();
+    if (isIncomingOnly || isOutgoingOnly) {
+      return _buildBlock(
+          child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildLeftPane(context),
+          if (!isIncomingOnly) const VerticalDivider(width: 1),
+          if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+        ],
+      ));
+    }
+    // Internal layout mirroring Radmin: identity on the left, connect card on
+    // the right, address book spanning the full width below.
     return _buildBlock(
-        child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        buildLeftPane(context),
-        if (!isIncomingOnly) const VerticalDivider(width: 1),
-        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+        SizedBox(
+          height: 148,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildDesktopInfoPane(context),
+              const VerticalDivider(width: 1),
+              const Expanded(child: ConnectionPage(showPeers: false)),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        const Expanded(child: PeerTabPage()),
       ],
     ));
   }
@@ -174,10 +199,104 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
+
+  /// compact identity pane: title, hint and local IP (Radmin-like top-left)
+  Widget _buildDesktopInfoPane(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
+    return Container(
+      width: 236.0,
+      color: Theme.of(context).colorScheme.background,
+      padding: const EdgeInsets.only(left: 16, right: 12, top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              loadIcon(16),
+              const SizedBox(width: 6),
+              Text(
+                translate("Your Desktop"),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            translate("desk_tip"),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontSize: 11),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Container(
+                  width: 2,
+                  height: 40,
+                  decoration: const BoxDecoration(color: MyTheme.accent),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 7),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          translate("IP"),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: textColor?.withOpacity(0.5)),
+                        ),
+                        Flexible(
+                          child: FutureBuilder<String>(
+                            future: bind.mainGetLocalIp(),
+                            builder: (context, snapshot) {
+                              final ip = snapshot.data ?? '';
+                              return GestureDetector(
+                                onDoubleTap: () {
+                                  if (ip.isNotEmpty) {
+                                    Clipboard.setData(
+                                        ClipboardData(text: ip));
+                                    showToast(translate("Copied"));
+                                  }
+                                },
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      ip.isEmpty ? '-' : ip,
+                                      style: const TextStyle(fontSize: 17),
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIpBoard(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 20, right: 11),
-      height: 57,
+      margin: const EdgeInsets.only(left: 14, right: 11),
+      height: 42,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
@@ -193,19 +312,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    height: 25,
+                    height: 20,
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         translate("IP"),
                         style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: Theme.of(context)
                                 .textTheme
                                 .titleLarge
                                 ?.color
                                 ?.withOpacity(0.5)),
-                      ).marginOnly(top: 5),
+                      ).marginOnly(top: 2),
                     ),
                   ),
                   Flexible(
@@ -226,7 +345,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 ip.isEmpty ? '-' : ip,
-                                style: TextStyle(fontSize: 22),
+                                style: const TextStyle(fontSize: 16),
                                 maxLines: 1,
                               ),
                             ),
@@ -449,7 +568,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final isOutgoingOnly = bind.isOutgoingOnly();
     return Padding(
       padding:
-          const EdgeInsets.only(left: 20.0, right: 16, top: 16.0, bottom: 5),
+          const EdgeInsets.only(left: 14.0, right: 12, top: 14.0, bottom: 2),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,8 +585,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                 ),
             ],
           ),
-          SizedBox(
-            height: 10.0,
+          const SizedBox(
+            height: 6.0,
           ),
           if (!isOutgoingOnly)
             Text(

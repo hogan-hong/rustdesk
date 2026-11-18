@@ -181,7 +181,10 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
 /// Connection page for connecting to a remote peer.
 class ConnectionPage extends StatefulWidget {
-  const ConnectionPage({Key? key}) : super(key: key);
+  /// when false only the connect card is rendered (peer list hosted elsewhere)
+  final bool showPeers;
+
+  const ConnectionPage({Key? key, this.showPeers = true}) : super(key: key);
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -296,6 +299,20 @@ class _ConnectionPageState extends State<ConnectionPage>
   @override
   Widget build(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
+    if (!widget.showPeers) {
+      // compact mode: only the connect card, peer list lives below the split
+      return Align(
+        alignment: Alignment.topLeft,
+        child: SingleChildScrollView(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(child: _buildRemoteIDTextField(context)),
+            ],
+          ).marginOnly(top: 10, bottom: 10),
+        ),
+      ).paddingOnly(left: 12.0);
+    }
     return Column(
       children: [
         Expanded(
@@ -366,16 +383,20 @@ class _ConnectionPageState extends State<ConnectionPage>
   /// UI for the remote ID TextField.
   /// Search for a peer.
   Widget _buildRemoteIDTextField(BuildContext context) {
+    final compact = !widget.showPeers;
     var w = Container(
       width: 320 + 20 * 2,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
+          : const EdgeInsets.fromLTRB(20, 24, 20, 22),
       decoration: BoxDecoration(
           borderRadius: const BorderRadius.all(Radius.circular(13)),
           border: Border.all(color: Theme.of(context).colorScheme.background)),
       child: Ink(
         child: Column(
           children: [
-            getConnectionPageTitle(context, false).marginOnly(bottom: 15),
+            getConnectionPageTitle(context, false)
+                .marginOnly(bottom: compact ? 8 : 15),
             Row(
               children: [
                 Expanded(
@@ -539,7 +560,7 @@ class _ConnectionPageState extends State<ConnectionPage>
               ],
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 13.0),
+              padding: EdgeInsets.only(top: compact ? 8.0 : 13.0),
               child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 SizedBox(
                   height: 28.0,
