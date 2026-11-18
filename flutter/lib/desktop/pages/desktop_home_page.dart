@@ -84,12 +84,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildDesktopInfoPane(context),
-              const VerticalDivider(width: 1),
+              Container(
+                width: 1,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                color: Theme.of(context).dividerColor,
+              ),
               const Expanded(child: ConnectionPage(showPeers: false)),
             ],
           ),
         ),
-        const Divider(height: 1),
+        Divider(
+          height: 1,
+          indent: 12,
+          endIndent: 12,
+          color: Theme.of(context).dividerColor,
+        ),
         const Expanded(child: PeerTabPage()),
       ],
     ));
@@ -231,62 +240,57 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Container(
-                  width: 2,
-                  height: 40,
-                  decoration: const BoxDecoration(color: MyTheme.accent),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 7),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          translate("IP"),
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: textColor?.withOpacity(0.5)),
-                        ),
-                        Flexible(
-                          child: FutureBuilder<String>(
-                            future: bind.mainGetLocalIp(),
-                            builder: (context, snapshot) {
-                              final ip = snapshot.data ?? '';
-                              return GestureDetector(
-                                onDoubleTap: () {
-                                  if (ip.isNotEmpty) {
-                                    Clipboard.setData(
-                                        ClipboardData(text: ip));
-                                    showToast(translate("Copied"));
-                                  }
-                                },
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      ip.isEmpty ? '-' : ip,
-                                      style: const TextStyle(fontSize: 17),
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                ),
-                              );
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 2,
+                height: 32,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: const BoxDecoration(color: MyTheme.accent),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        translate("IP"),
+                        style: TextStyle(
+                            fontSize: 12,
+                            height: 1.1,
+                            color: textColor?.withOpacity(0.5)),
+                      ),
+                      const SizedBox(height: 2),
+                      FutureBuilder<String>(
+                        future: bind.mainGetLocalIp(),
+                        builder: (context, snapshot) {
+                          final ip = snapshot.data ?? '';
+                          return GestureDetector(
+                            onDoubleTap: () {
+                              if (ip.isNotEmpty) {
+                                Clipboard.setData(ClipboardData(text: ip));
+                                showToast(translate("Copied"));
+                              }
                             },
-                          ),
-                        ),
-                      ],
-                    ),
+                            child: Text(
+                              ip.isEmpty ? '-' : ip,
+                              style:
+                                  const TextStyle(fontSize: 17, height: 1.2),
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

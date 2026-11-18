@@ -537,6 +537,8 @@ class _DesktopTabState extends State<DesktopTab>
                 if (showBottomDivider)
                   const Divider(
                     height: 1,
+                    indent: 12,
+                    endIndent: 12,
                   ),
               ],
             ),

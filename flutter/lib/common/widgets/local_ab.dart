@@ -227,11 +227,14 @@ class LocalAbStore {
   }
 }
 
-Dialog _wrapDialog(Widget child) {
+Dialog _wrapDialog(Widget child, {double? width}) {
   return Dialog(
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: child,
+    child: SizedBox(
+      width: width ?? 420,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: child,
+      ),
     ),
   );
 }
@@ -246,46 +249,49 @@ Future<void> _showTextInputDialog({
   await showDialog(
       context: context,
       builder: (dialogContext) {
-        return _wrapDialog(Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: hint,
-                isDense: true,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+        return _wrapDialog(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('取消')),
-                const SizedBox(width: 8),
-                FilledButton(
-                    onPressed: () {
-                      final text = controller.text.trim();
-                      if (text.isEmpty) {
-                        return;
-                      }
-                      onOk(dialogContext, text);
-                      Navigator.pop(dialogContext);
-                    },
-                    child: const Text('确定')),
+                Text(
+                  title,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('取消')),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                        onPressed: () {
+                          final text = controller.text.trim();
+                          if (text.isEmpty) {
+                            return;
+                          }
+                          onOk(dialogContext, text);
+                          Navigator.pop(dialogContext);
+                        },
+                        child: const Text('确定')),
+                  ],
+                ),
               ],
-            ),
-          ],
-        ));
+            ));
       });
 }
 
@@ -1046,7 +1052,7 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
 
   Widget _buildGroupSidebar(List<LocalAbGroup> groups) {
     return SizedBox(
-      width: 185,
+      width: 278,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
