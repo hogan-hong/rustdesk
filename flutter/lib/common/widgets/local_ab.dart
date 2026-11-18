@@ -261,12 +261,14 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
       });
 }
 
-/// dialog: manage local groups (create / rename / delete)
+/// dialog: manage local groups (create / rename / delete / reorder)
 Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
   final groups = LocalAbStore.load();
   final newGroupController = TextEditingController();
   int? editingIndex;
   final renameController = TextEditingController();
+  final dragKeys = {for (final g in groups) g: UniqueKey()};
+  Key keyFor(LocalAbGroup g) => dragKeys.putIfAbsent(g, () => UniqueKey());
   await showDialog(
       context: context,
       builder: (dialogContext) {
@@ -291,13 +293,39 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                             color: Theme.of(ctx).textTheme.titleLarge?.color
                                 ?.withOpacity(0.6)),
                       )
-                    : ListView(
+                    : ReorderableListView(
                         shrinkWrap: true,
+                        buildDefaultDragHandles: false,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            if (newIndex > oldIndex) {
+                              newIndex -= 1;
+                            }
+                            final g = groups.removeAt(oldIndex);
+                            groups.insert(newIndex, g);
+                            if (editingIndex == oldIndex) {
+                              editingIndex = newIndex;
+                            }
+                          });
+                        },
                         children: List.generate(groups.length, (index) {
                           final g = groups[index];
                           if (editingIndex == index) {
                             return Row(
+                              key: keyFor(g),
                               children: [
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: Icon(
+                                    Icons.drag_indicator,
+                                    size: 16,
+                                    color: Theme.of(ctx)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.color
+                                        ?.withOpacity(0.4),
+                                  ),
+                                ),
                                 Expanded(
                                   child: TextField(
                                     controller: renameController,
@@ -312,6 +340,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                 IconButton(
                                   tooltip: '确认改名',
                                   visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 26, minHeight: 26),
                                   icon: const Icon(Icons.check, size: 18),
                                   onPressed: () {
                                     final text = renameController.text.trim();
@@ -335,6 +366,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                                 IconButton(
                                   tooltip: '取消',
                                   visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 26, minHeight: 26),
                                   icon: const Icon(Icons.close, size: 18),
                                   onPressed: () {
                                     setState(() => editingIndex = null);
@@ -344,7 +378,20 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                             );
                           }
                           return Row(
+                            key: keyFor(g),
                             children: [
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: Icon(
+                                  Icons.drag_indicator,
+                                  size: 16,
+                                  color: Theme.of(ctx)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.color
+                                      ?.withOpacity(0.4),
+                                ),
+                              ),
                               Expanded(
                                 child: Text(
                                   '${g.name} (${g.peers.length})',
@@ -354,6 +401,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                               IconButton(
                                 tooltip: '重命名分组',
                                 visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 26, minHeight: 26),
                                 icon: const Icon(Icons.edit, size: 18),
                                 onPressed: () {
                                   setState(() {
@@ -365,6 +415,9 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                               IconButton(
                                 tooltip: '删除分组',
                                 visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 26, minHeight: 26),
                                 icon: const Icon(Icons.delete_outline,
                                     size: 18),
                                 onPressed: () {
@@ -396,6 +449,10 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                   ),
                   IconButton(
                     tooltip: '新建分组',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 26, minHeight: 26),
                     icon: const Icon(Icons.add),
                     onPressed: () {
                       final text = newGroupController.text.trim();
@@ -736,9 +793,12 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
             color: Theme.of(context).dividerColor,
           ),
           Expanded(
-            child: LocalAbPeersView(
-              group: selectedGroup.isEmpty ? null : selectedGroup,
-              menuPadding: widget.menuPadding,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: LocalAbPeersView(
+                group: selectedGroup.isEmpty ? null : selectedGroup,
+                menuPadding: widget.menuPadding,
+              ),
             ),
           ),
         ],
