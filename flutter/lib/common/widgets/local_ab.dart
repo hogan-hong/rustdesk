@@ -261,10 +261,12 @@ Future<void> putPeerToGroupDialog(BuildContext context, String peerId) async {
       });
 }
 
-/// dialog: manage local groups (create / delete)
+/// dialog: manage local groups (create / rename / delete)
 Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
   final groups = LocalAbStore.load();
   final newGroupController = TextEditingController();
+  int? editingIndex;
+  final renameController = TextEditingController();
   await showDialog(
       context: context,
       builder: (dialogContext) {
@@ -291,30 +293,93 @@ Future<void> manageLocalAbGroupsDialog(BuildContext context) async {
                       )
                     : ListView(
                         shrinkWrap: true,
-                        children: groups
-                            .map((g) => Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${g.name} (${g.peers.length})',
-                                        style:
-                                            const TextStyle(fontSize: 14),
-                                      ),
+                        children: List.generate(groups.length, (index) {
+                          final g = groups[index];
+                          if (editingIndex == index) {
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: renameController,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      hintText: '新分组名',
+                                      border: OutlineInputBorder(),
                                     ),
-                                    IconButton(
-                                      tooltip: '删除分组',
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 18),
-                                      onPressed: () {
-                                        setState(() {
-                                          groups.remove(g);
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ))
-                            .toList(),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: '确认改名',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.check, size: 18),
+                                  onPressed: () {
+                                    final text = renameController.text.trim();
+                                    if (text.isEmpty) {
+                                      return;
+                                    }
+                                    var name = text;
+                                    var j = 2;
+                                    while (groups.any((g2) =>
+                                        !identical(g2, g) &&
+                                        g2.name == name)) {
+                                      name = '$text($j)';
+                                      j++;
+                                    }
+                                    setState(() {
+                                      g.name = name;
+                                      editingIndex = null;
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  tooltip: '取消',
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () {
+                                    setState(() => editingIndex = null);
+                                  },
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${g.name} (${g.peers.length})',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: '重命名分组',
+                                visualDensity: VisualDensity.compact,
+                                icon:
+                                    const Icon(Icons.edit_outline, size: 18),
+                                onPressed: () {
+                                  setState(() {
+                                    editingIndex = index;
+                                    renameController.text = g.name;
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                tooltip: '删除分组',
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18),
+                                onPressed: () {
+                                  setState(() {
+                                    if (editingIndex == index) {
+                                      editingIndex = null;
+                                    }
+                                    groups.remove(g);
+                                  });
+                                },
+                              ),
+                            ],
+                          );
+                        }),
                       ),
               ),
               const SizedBox(height: 8),
@@ -428,41 +493,61 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
 
   _onGroupsChanged() {
     if (mounted) {
-      setState(() {});
+      setState(() {
+        // selected group may have been renamed or removed elsewhere
+        if (selectedGroup.isNotEmpty &&
+            !LocalAbStore.load().any((g) => g.name == selectedGroup)) {
+          selectedGroup = '';
+        }
+      });
     }
   }
 
   Widget _buildChip(String label, bool selected, GestureTapCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label, style: const TextStyle(fontSize: 13)),
-        selected: selected,
-        visualDensity: VisualDensity.compact,
-        onSelected: (_) => onTap(),
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? MyTheme.accent : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color:
+                  selected ? MyTheme.accent : Theme.of(context).dividerColor),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: selected
+                ? Colors.white
+                : Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.8),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildGroupBar(List<LocalAbGroup> groups) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 4, top: 4),
+      padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4, top: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildChip('全部', selectedGroup.isEmpty, () {
-                    setState(() => selectedGroup = '');
-                  }),
-                  ...groups.map((g) => _buildChip(g.name,
-                      selectedGroup == g.name, () {
-                    setState(() => selectedGroup = g.name);
-                  })),
-                ],
-              ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _buildChip('全部', selectedGroup.isEmpty, () {
+                  setState(() => selectedGroup = '');
+                }),
+                ...groups.map((g) => _buildChip(g.name, selectedGroup == g.name,
+                    () {
+                  setState(() => selectedGroup = g.name);
+                })),
+              ],
             ),
           ),
           IconButton(
