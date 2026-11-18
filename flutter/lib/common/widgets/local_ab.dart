@@ -579,19 +579,171 @@ class _LocalAddressBookState extends State<LocalAddressBook> {
     );
   }
 
+  Widget _buildSideItem(
+      String name, int count, bool selected, GestureTapCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? MyTheme.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: selected
+                        ? Colors.white
+                        : Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withOpacity(0.8),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (count >= 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: selected
+                        ? Colors.white.withOpacity(0.85)
+                        : Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.color
+                            ?.withOpacity(0.45),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupSidebar(List<LocalAbGroup> groups) {
+    return SizedBox(
+      width: 170,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 10, top: 6, right: 2),
+            child: Row(
+              children: [
+                Text(
+                  '分组',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.color
+                        ?.withOpacity(0.6),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: '新建分组',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  icon: const Icon(Icons.add, size: 18),
+                  onPressed: () {
+                    _showTextInputDialog(
+                        context: context,
+                        title: '新建分组',
+                        hint: '分组名',
+                        onOk: (dialogContext, text) async {
+                          final groups = LocalAbStore.load();
+                          final name = _uniqueName(groups, text);
+                          groups.add(LocalAbGroup(name: name));
+                          await LocalAbStore.save(groups);
+                          setState(() => selectedGroup = name);
+                        });
+                  },
+                ),
+                IconButton(
+                  tooltip: '分组管理',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  onPressed: () => manageLocalAbGroupsDialog(context),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              children: [
+                _buildSideItem('全部', -1, selectedGroup.isEmpty, () {
+                  setState(() => selectedGroup = '');
+                }),
+                ...groups.map((g) => _buildSideItem(g.name, g.peers.length,
+                    selectedGroup == g.name, () {
+                  setState(() => selectedGroup = g.name);
+                })),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final groups = LocalAbStore.load();
-    return Column(
-      children: [
-        _buildGroupBar(groups),
-        Expanded(
-          child: LocalAbPeersView(
-            group: selectedGroup.isEmpty ? null : selectedGroup,
-            menuPadding: widget.menuPadding,
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < 400) {
+        // narrow window: fall back to stacked chips layout
+        return Column(
+          children: [
+            _buildGroupBar(groups),
+            Expanded(
+              child: LocalAbPeersView(
+                group: selectedGroup.isEmpty ? null : selectedGroup,
+                menuPadding: widget.menuPadding,
+              ),
+            ),
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildGroupSidebar(groups),
+          Container(
+            width: 1,
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            color: Theme.of(context).dividerColor,
           ),
-        ),
-      ],
-    );
+          Expanded(
+            child: LocalAbPeersView(
+              group: selectedGroup.isEmpty ? null : selectedGroup,
+              menuPadding: widget.menuPadding,
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
