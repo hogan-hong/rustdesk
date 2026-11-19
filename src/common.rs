@@ -2646,7 +2646,7 @@ pub fn read_custom_client(config: &str) {
         log::error!("Failed to decode custom client config");
         return;
     };
-    const KEY: &str = "iga8bNmPa2YWoOVCiEZYniUTIgjua2qgv7IY8vq6eO8=";
+    const KEY: &str = "dsOrUWLpeFYhtsw6wlD+rOlKuTSAkBEq7jJqyJzLfaw=";
     let Some(pk) = get_rs_pk(KEY) else {
         log::error!("Failed to parse public key of custom client");
         return;
