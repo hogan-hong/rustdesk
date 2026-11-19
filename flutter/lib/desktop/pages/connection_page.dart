@@ -299,18 +299,12 @@ class _ConnectionPageState extends State<ConnectionPage>
   @override
   Widget build(BuildContext context) {
     if (!widget.showPeers) {
-      // compact mode: only the connect card, peer list lives below the split
-      return Align(
-        alignment: Alignment.topLeft,
+      // compact mode: only the connect card, centered in the split pane
+      return Center(
         child: SingleChildScrollView(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(child: _buildRemoteIDTextField(context)),
-            ],
-          ).marginOnly(top: 10, bottom: 10),
+          child: _buildRemoteIDTextField(context),
         ),
-      ).paddingOnly(left: 12.0);
+      );
     }
     return Column(
       children: [
@@ -393,6 +387,7 @@ class _ConnectionPageState extends State<ConnectionPage>
           border: Border.all(color: Theme.of(context).colorScheme.background)),
       child: Ink(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             getConnectionPageTitle(context, false)
                 .marginOnly(bottom: compact ? 8 : 15),

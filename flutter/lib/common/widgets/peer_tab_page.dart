@@ -710,7 +710,6 @@ class _PeerSearchBarState extends State<PeerSearchBar> {
         : _hoverAction(
             context: context,
             toolTip: translate('Search'),
-            padding: const EdgeInsets.only(right: 2),
             onTap: () {
               setState(() {
                 drawer = true;
@@ -777,32 +776,17 @@ class _PeerSearchBarState extends State<PeerSearchBar> {
                       ).workaroundFreezeLinuxMint(),
                     ),
                     // Icon(Icons.close),
-                    Tooltip(
-                      message: translate('Close'),
-                      child: SizedBox(
-                        width: 26,
-                        height: 26,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(6),
-                          splashFactory: NoSplash.splashFactory,
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          hoverColor:
-                              Theme.of(context).hintColor.withOpacity(0.08),
-                          onTap: () {
-                            setState(() {
-                              peerSearchTextController.clear();
-                              peerSearchText.value = "";
-                              drawer = false;
-                            });
-                          },
-                          child: Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Theme.of(context).hintColor,
-                          ),
-                        ),
-                      ),
+                    MiniHoverIconButton(
+                      tooltip: translate('Close'),
+                      icon: Icons.close,
+                      color: Theme.of(context).hintColor,
+                      onTap: () {
+                        setState(() {
+                          peerSearchTextController.clear();
+                          peerSearchText.value = "";
+                          drawer = false;
+                        });
+                      },
                     ),
                   ],
                 ),
@@ -1012,8 +996,9 @@ class RefreshWidgetState extends State<RefreshWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
     final deco = BoxDecoration(
-      color: Theme.of(context).colorScheme.background,
+      color: (textColor ?? Colors.grey).withOpacity(0.12),
       borderRadius: BorderRadius.circular(6),
     );
     return AnimatedRotation(
@@ -1029,6 +1014,11 @@ class RefreshWidgetState extends State<RefreshWidget> {
           margin: EdgeInsets.symmetric(horizontal: 1),
           decoration: hover ? deco : null,
           child: InkWell(
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
               onTap: () {
                 if (mounted) setState(() => turns += 1.0);
                 widget.onPressed();
@@ -1045,6 +1035,59 @@ class RefreshWidgetState extends State<RefreshWidget> {
   }
 }
 
+/// small icon button with the same rounded hover backdrop used by the
+/// group sidebar buttons (28x28, transparent ripple)
+class MiniHoverIconButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const MiniHoverIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  State<MiniHoverIconButton> createState() => _MiniHoverIconButtonState();
+}
+
+class _MiniHoverIconButtonState extends State<MiniHoverIconButton> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor =
+        widget.color ?? Theme.of(context).textTheme.titleLarge?.color;
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _hover
+                  ? (iconColor ?? Colors.grey).withOpacity(0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(widget.icon, size: 18, color: iconColor),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Widget _hoverAction(
     {required BuildContext context,
     required Widget child,
@@ -1054,8 +1097,9 @@ Widget _hoverAction(
     RxBool? hoverableWhenfalse,
     EdgeInsetsGeometry padding = const EdgeInsets.all(4.0)}) {
   final hover = false.obs;
+  final textColor = Theme.of(context).textTheme.titleLarge?.color;
   final deco = BoxDecoration(
-    color: Theme.of(context).colorScheme.background,
+    color: (textColor ?? Colors.grey).withOpacity(0.12),
     borderRadius: BorderRadius.circular(6),
   );
   return Tooltip(
