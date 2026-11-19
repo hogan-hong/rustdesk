@@ -9,6 +9,7 @@ Requires: pip install pynacl
 """
 import base64
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -19,8 +20,22 @@ def main() -> None:
     if len(sys.argv) != 3:
         print("usage: generate.py <config.json> <output-custom.txt>")
         sys.exit(1)
-    key_file = Path(__file__).parent / "signing-key.b64"
-    sk = SigningKey(base64.b64decode(key_file.read_text().strip()))
+    # The signing key is NOT kept in the repo (it would leak on a public repo).
+    # Provide it via the CUSTOM_SIGNING_KEY env var (base64 of the 32-byte
+    # ed25519 seed) or a path via CUSTOM_SIGNING_KEY_FILE.
+    key_file = Path(os.environ.get(
+        "CUSTOM_SIGNING_KEY_FILE",
+        Path(__file__).parent / "signing-key.b64",
+    ))
+    raw = os.environ.get("CUSTOM_SIGNING_KEY")
+    if raw:
+        sk = SigningKey(base64.b64decode(raw.strip()))
+    elif key_file.exists():
+        sk = SigningKey(base64.b64decode(key_file.read_text().strip()))
+    else:
+        print("error: signing key not found; set CUSTOM_SIGNING_KEY "
+              "or CUSTOM_SIGNING_KEY_FILE")
+        sys.exit(1)
     data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     msg = json.dumps(data, separators=(",", ":")).encode("utf-8")
     signed = sk.sign(msg)  # attached signature: sig(64) || msg, same as libsodium crypto_sign
