@@ -99,7 +99,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           endIndent: 12,
           color: Theme.of(context).dividerColor,
         ),
-        const Expanded(child: PeerTabPage()),
+        Expanded(
+          child: const Padding(
+            padding: EdgeInsets.only(left: 12),
+            child: PeerTabPage(),
+          ),
+        ),
       ],
     ));
   }
